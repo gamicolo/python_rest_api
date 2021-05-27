@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 from flask import Flask
 from flask_restful import Api, Resource, reqparse, abort
 from datetime import datetime
@@ -13,9 +14,6 @@ transactions_amount=0
 
 transactions_post_args = reqparse.RequestParser()
 
-#transactions_post_args.add_argument("amount", type=str, help="", required=True)
-#transactions_post_args.add_argument("timestamp", type=str, help="", required=True)
-
 transactions_post_args.add_argument("amount", type=str, help="")
 transactions_post_args.add_argument("timestamp", type=str, help="")
 
@@ -27,6 +25,11 @@ def get_delta_time(utc_str):
     #print(curr_ts)
     return (curr_ts - tx_ts)
 
+def delta_time(timestamp):
+    utc_now = datetime.utcnow().replace(tzinfo=pytz.timezone('UTC'))
+    current_timestamp = iso2unix(utc_now.isoformat('T'))
+    return (current_timestamp - timestamp)
+
 def iso2unix(utc_str):
     parsed_t = dp.parse(utc_str)
     return calendar.timegm(parsed_t.timetuple())
@@ -35,11 +38,17 @@ class Transactions(Resource):
 
     def get(self):
         total_tx = []
+        delta = delta_time(0)
         global transactions
-        for k in transactions.keys():
-            total_tx.append({'amount':transactions[k]['amount'],'timestamp':k})
+        for timestamp in transactions.keys():
+            print(timestamp)
+            print(delta)
+            if (delta - timestamp) < 60:
+                total_tx.append(transactions[timestamp])
+            #TODO validar que se deberan descartar las transactions que superen los 60 segundos
+            else:
+                transactions.pop(timestamp)
 
-        #return [{'amount':transactions['amount'],'timestamp':transactions['timestamp']}],200
         return total_tx,200
 
     def post(self):
@@ -57,7 +66,10 @@ class Transactions(Resource):
             print('timestamp is None or not type str')
             return {},422
 
-        delta = get_delta_time(args['timestamp'])
+        tx_ts = iso2unix(args['timestamp'])
+
+        delta = delta_time(tx_ts)
+        #delta = get_delta_time(args['timestamp'])
 
         #422 transaccion con TS mayor al UTC actual
         if (delta < 0):
@@ -71,8 +83,9 @@ class Transactions(Resource):
             return {},204
 
         #201 exito
-        transactions_amount = transactions_amount + int(args['amount'])
-        transactions.update({args['timestamp']:{'amount': transactions_amount}})
+        transactions_amount += int(args['amount'])
+        transactions.update({tx_ts:{'amount':args['amount'],'timestamp':args['timestamp']}})
+        print(transactions)
         return {},201
 
     def delete(self):
@@ -84,7 +97,30 @@ class Transactions(Resource):
 
 class Statistics(Resource):
     def get(self):
-        return {}
+        statistics = {'sum': 0, 'avg': 0, 'max': 0, 'min': 0, 'p90': 0, 'count': 0}
+        delta = delta_time(0)
+        global transactions
+        for timestamp in transactions.keys():
+            #print(timestamp)
+            #print(delta)
+            if (delta - timestamp) < 60:
+                statistics['sum'] += int(transactions[timestamp]['amount'])
+                statistics['avg'] += int(transactions[timestamp]['amount'])
+                print(int(transactions[timestamp]['amount']))
+                if (int(transactions[timestamp]['amount']) > statistics['max']):
+                    statistics['max']=int(transactions[timestamp]['amount'])
+                if (statistics['min'] == 0):
+                    statistics['min']=int(transactions[timestamp]['amount'])
+                if (int(transactions[timestamp]['amount']) < statistics['min']):
+                    statistics['min']=int(transactions[timestamp]['amount'])
+                statistics['count'] += 1
+            #TODO validar que se deberan descartar las transactions que superen los 60 segundos
+            else:
+                transactions.pop(timestamp)
+        #TODO: encontrar una solucion mas elegante para el promedio
+        if (statistics['avg'] > 0 and statistics['count'] > 0):
+            statistics['avg'] = statistics['avg']/statistics['count']
+        return statistics
 
 api.add_resource(Transactions, "/transactions")
 api.add_resource(Statistics, "/statistics")
