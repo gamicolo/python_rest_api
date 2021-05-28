@@ -10,50 +10,66 @@ app = Flask(__name__)
 api = Api(app)
 
 transactions={}
-transactions_amount=0
 
 transactions_post_args = reqparse.RequestParser()
 
 transactions_post_args.add_argument("amount", type=str, help="")
 transactions_post_args.add_argument("timestamp", type=str, help="")
 
-def get_delta_time(utc_str):
-    tx_ts = iso2unix(utc_str)
+def get_current_timestamp_utc():
     utc_now = datetime.utcnow().replace(tzinfo=pytz.timezone('UTC'))
-    curr_ts = iso2unix(utc_now.isoformat('T'))
-    #print(tx_ts)
-    #print(curr_ts)
-    return (curr_ts - tx_ts)
+    return iso2unix(utc_now.isoformat('T'))
 
-def delta_time(timestamp):
-    utc_now = datetime.utcnow().replace(tzinfo=pytz.timezone('UTC'))
-    current_timestamp = iso2unix(utc_now.isoformat('T'))
-    return (current_timestamp - timestamp)
-
-def iso2unix(utc_str):
-    parsed_t = dp.parse(utc_str)
+def iso2unix(timestamp):
+    parsed_t = dp.parse(timestamp)
     return calendar.timegm(parsed_t.timetuple())
+
+def get_transactions(transactions):
+    #make a local copy of the transactions dict to iterate over and not be affected when remove values older than 60 secs
+    local_transactions = dict(transactions)
+    result = []
+    current_timestamp = get_current_timestamp_utc()
+    for timestamp in local_transactions.keys():
+        print(timestamp)
+        print(current_timestamp)
+        if (current_timestamp - timestamp) < 60:
+            result.append(local_transactions[timestamp])
+        else:
+            #remove old values from the original and not the copy
+            transactions.pop(timestamp)
+    return result
+
+def get_statistics(transactions):
+    local_transactions = dict(transactions)
+    statistics = {'sum': 0, 'avg': 0, 'max': 0, 'min': 0, 'p90': 0, 'count': 0}
+    current_timestamp = get_current_timestamp_utc()
+    for timestamp in local_transactions.keys():
+        #print(timestamp)
+        #print(delta)
+        if (current_timestamp - timestamp) < 60:
+            statistics['sum'] += int(local_transactions[timestamp]['amount'])
+            if (int(local_transactions[timestamp]['amount']) > statistics['max']):
+                statistics['max']=int(local_transactions[timestamp]['amount'])
+            if (statistics['min'] == 0):
+                statistics['min']=int(local_transactions[timestamp]['amount'])
+            if (int(local_transactions[timestamp]['amount']) < statistics['min']):
+                statistics['min']=int(local_transactions[timestamp]['amount'])
+            statistics['count'] += 1
+        else:
+            transactions.pop(timestamp)
+    if (statistics['count'] > 0):
+        statistics['avg'] = statistics['sum']/statistics['count']
+    return statistics
 
 class Transactions(Resource):
 
     def get(self):
-        total_tx = []
-        delta = delta_time(0)
         global transactions
-        for timestamp in transactions.keys():
-            print(timestamp)
-            print(delta)
-            if (delta - timestamp) < 60:
-                total_tx.append(transactions[timestamp])
-            #TODO validar que se deberan descartar las transactions que superen los 60 segundos
-            else:
-                transactions.pop(timestamp)
-
-        return total_tx,200
+        result = get_transactions(transactions)
+        return result,200
 
     def post(self):
         global transactions
-        global transactions_amount
 
         args = transactions_post_args.parse_args()
         
@@ -68,8 +84,7 @@ class Transactions(Resource):
 
         tx_ts = iso2unix(args['timestamp'])
 
-        delta = delta_time(tx_ts)
-        #delta = get_delta_time(args['timestamp'])
+        delta = get_current_timestamp_utc() - tx_ts
 
         #422 transaccion con TS mayor al UTC actual
         if (delta < 0):
@@ -83,7 +98,6 @@ class Transactions(Resource):
             return {},204
 
         #201 exito
-        transactions_amount += int(args['amount'])
         transactions.update({tx_ts:{'amount':args['amount'],'timestamp':args['timestamp']}})
         print(transactions)
         return {},201
@@ -96,31 +110,11 @@ class Transactions(Resource):
         return 204
 
 class Statistics(Resource):
+
     def get(self):
-        statistics = {'sum': 0, 'avg': 0, 'max': 0, 'min': 0, 'p90': 0, 'count': 0}
-        delta = delta_time(0)
         global transactions
-        for timestamp in transactions.keys():
-            #print(timestamp)
-            #print(delta)
-            if (delta - timestamp) < 60:
-                statistics['sum'] += int(transactions[timestamp]['amount'])
-                statistics['avg'] += int(transactions[timestamp]['amount'])
-                print(int(transactions[timestamp]['amount']))
-                if (int(transactions[timestamp]['amount']) > statistics['max']):
-                    statistics['max']=int(transactions[timestamp]['amount'])
-                if (statistics['min'] == 0):
-                    statistics['min']=int(transactions[timestamp]['amount'])
-                if (int(transactions[timestamp]['amount']) < statistics['min']):
-                    statistics['min']=int(transactions[timestamp]['amount'])
-                statistics['count'] += 1
-            #TODO validar que se deberan descartar las transactions que superen los 60 segundos
-            else:
-                transactions.pop(timestamp)
-        #TODO: encontrar una solucion mas elegante para el promedio
-        if (statistics['avg'] > 0 and statistics['count'] > 0):
-            statistics['avg'] = statistics['avg']/statistics['count']
-        return statistics
+        result = get_statistics(transactions)
+        return result,200
 
 api.add_resource(Transactions, "/transactions")
 api.add_resource(Statistics, "/statistics")
