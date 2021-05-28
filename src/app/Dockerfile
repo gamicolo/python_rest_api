@@ -1,9 +1,9 @@
 FROM python:3
 
-WORKDIR /home/guille/development/python_rest_ap/src/app
+WORKDIR /usr/src/app
 
 COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 

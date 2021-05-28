@@ -3,5 +3,5 @@ version: '3.4'
 services:
     real-time-statistics:
         build: .
-        volume:
-            -.:/home/guille/development/python_rest_ap/src/app
+        volumes:
+          - .:/usr/src/app
