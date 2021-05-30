@@ -5,6 +5,12 @@ from datetime import datetime
 import dateutil.parser as dp
 import calendar
 import pytz
+import logging
+
+logging.basicConfig(filename='real_time_stats.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(format='%(process)d-%(levelname)s-%(message)s')
+
+logger = logging.getLogger('real_time_stats')
 
 app = Flask(__name__)
 api = Api(app)
@@ -29,13 +35,14 @@ def get_transactions(transactions):
     local_transactions = dict(transactions)
     result = []
     current_timestamp = get_current_timestamp_utc()
+    logger.debug('The current timestamp is: %s' % current_timestamp)
     for timestamp in local_transactions.keys():
-        print(timestamp)
-        print(current_timestamp)
+        logger.debug('The timestamp key in transactions dict is: %s' % timestamp)
         if (current_timestamp - timestamp) < 60:
             result.append(local_transactions[timestamp])
         else:
             #remove old values from the original and not the copy
+            logger.debug('Removing timestamp key %s from transactions dict (older than 60 sec)' % timestamp)
             transactions.pop(timestamp)
     return result
 
@@ -43,9 +50,9 @@ def get_statistics(transactions):
     local_transactions = dict(transactions)
     statistics = {'sum': 0, 'avg': 0, 'max': 0, 'min': 0, 'p90': 0, 'count': 0}
     current_timestamp = get_current_timestamp_utc()
+    logger.debug('The current timestamp is: %s' % current_timestamp)
     for timestamp in local_transactions.keys():
-        #print(timestamp)
-        #print(delta)
+        logger.debug('The timestamp key in transactions dict is: %s' % timestamp)
         if (current_timestamp - timestamp) < 60:
             statistics['sum'] += int(local_transactions[timestamp]['amount'])
             if (int(local_transactions[timestamp]['amount']) > statistics['max']):
@@ -56,6 +63,8 @@ def get_statistics(transactions):
                 statistics['min']=int(local_transactions[timestamp]['amount'])
             statistics['count'] += 1
         else:
+            #remove old values from the original and not the copy
+            logger.debug('Removing timestamp key %s from transactions dict (older than 60 sec)' % timestamp)
             transactions.pop(timestamp)
     if (statistics['count'] > 0):
         statistics['avg'] = statistics['sum']/statistics['count']
@@ -73,13 +82,12 @@ class Transactions(Resource):
 
         args = transactions_post_args.parse_args()
         
-        #422 campos del body no pueden ser parseados (no existe o es del tipo invalido)
+        #422 body fields cannot be parsed (non exists or invalid type)
         if not(args['amount']) or not(type(args['amount']) == str):
-            print('amount is None or not type str')
+            logger.error('amount is None or not type str')
             return {},422
         if not(args['timestamp']) or not(type(args['amount']) == str):
-            #TODO: agregar validacion del tipo de dato (que sea timestamp UTC)
-            print('timestamp is None or not type str')
+            logger.error('timestamp is None or not type str')
             return {},422
 
         tx_ts = iso2unix(args['timestamp'])
@@ -91,9 +99,9 @@ class Transactions(Resource):
             return {},422
 
         #400 json invalido
-        #TODO: validar el json
+        #TODO: implement 
 
-        #204 tx es anterior a 60 segundos
+        #204 transactions older than 60 secs
         if (delta > 60):
             return {},204
 
@@ -120,4 +128,4 @@ api.add_resource(Transactions, "/transactions")
 api.add_resource(Statistics, "/statistics")
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=80, debug=True)
