@@ -8,8 +8,8 @@ import pytz
 import math
 import logging
 
-logging.basicConfig(filename='real_time_stats.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
-logging.basicConfig(format='%(process)d-%(levelname)s-%(message)s')
+#logging.basicConfig(level=logging.DEBUG, filename='real_time_stats.log', filemode='w', format='%(asctime)s %(name)s %(levelname)s %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(name)s %(levelname)s %(message)s')
 
 logger = logging.getLogger('real_time_stats')
 
