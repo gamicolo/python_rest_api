@@ -79,17 +79,17 @@ class TestGetStatistics(unittest.TestCase):
     def test_statistics_not_empty(self):
 
         k1 = get_current_timestamp_utc() - 10
-        tx1 = {'amount': '10', 'timestamp': '2021-06-01T10:00:00.000Z'}
+        tx1 = {'amount': '5', 'timestamp': '2021-06-01T10:00:00.000Z'}
         k2 = get_current_timestamp_utc() - 15
-        tx2 = {'amount': '10', 'timestamp': '2021-06-01T11:00:00.000Z'}
+        tx2 = {'amount': '30', 'timestamp': '2021-06-01T11:00:00.000Z'}
         k3 = get_current_timestamp_utc() - 20
-        tx3 = {'amount': '10', 'timestamp': '2021-06-01T12:00:00.000Z'}
+        tx3 = {'amount': '25', 'timestamp': '2021-06-01T12:00:00.000Z'}
 
         transactions = {k1: tx1, k2: tx2, k3: tx3}
         
         result = get_statistics(transactions)
 
-        self.assertEqual(result,{'sum': 30, 'avg': 10, 'max': 10, 'min': 10, 'p90': 0, 'count': 3})
+        self.assertEqual(result,{'sum': 60, 'avg': 20, 'max': 30, 'min': 5, 'p90': 30, 'count': 3})
         
     def test_statistics_only_two_valid_transactions(self):
 
@@ -104,7 +104,7 @@ class TestGetStatistics(unittest.TestCase):
         
         result = get_statistics(transactions)
 
-        self.assertEqual(result,{'sum': 40, 'avg': 20, 'max': 30, 'min': 10, 'p90': 0, 'count': 2})
+        self.assertEqual(result,{'sum': 40, 'avg': 20, 'max': 30, 'min': 10, 'p90': 30, 'count': 2})
 
     def test_statistics_check_transaction_stored_data(self):
 
