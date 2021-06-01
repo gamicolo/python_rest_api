@@ -5,10 +5,11 @@ from datetime import datetime
 import dateutil.parser as dp
 import calendar
 import pytz
+import math
 import logging
 
-logging.basicConfig(filename='real_time_stats.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
-logging.basicConfig(format='%(process)d-%(levelname)s-%(message)s')
+#logging.basicConfig(level=logging.DEBUG, filename='real_time_stats.log', filemode='w', format='%(asctime)s %(name)s %(levelname)s %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(name)s %(levelname)s %(message)s')
 
 logger = logging.getLogger('real_time_stats')
 
@@ -51,6 +52,7 @@ def get_statistics(transactions):
     statistics = {'sum': 0, 'avg': 0, 'max': 0, 'min': 0, 'p90': 0, 'count': 0}
     current_timestamp = get_current_timestamp_utc()
     logger.debug('The current timestamp is: %s' % current_timestamp)
+    amount_list=[]
     for timestamp in local_transactions.keys():
         logger.debug('The timestamp key in transactions dict is: %s' % timestamp)
         if (current_timestamp - timestamp) < 60:
@@ -62,13 +64,24 @@ def get_statistics(transactions):
             if (int(local_transactions[timestamp]['amount']) < statistics['min']):
                 statistics['min']=int(local_transactions[timestamp]['amount'])
             statistics['count'] += 1
+            amount_list.append(int(local_transactions[timestamp]['amount']))
         else:
             #remove old values from the original and not the copy
             logger.debug('Removing timestamp key %s from transactions dict (older than 60 sec)' % timestamp)
             transactions.pop(timestamp)
     if (statistics['count'] > 0):
         statistics['avg'] = statistics['sum']/statistics['count']
+    if amount_list:
+        statistics['p90']=get_percentile(90, amount_list)
     return statistics
+
+def get_percentile(percentile, samples = []):
+
+    if not(len(samples) > 0):
+        return samples
+    samples.sort()
+    p_index = math.ceil((len(samples)-1)*(percentile/100))
+    return samples[p_index]
 
 class Transactions(Resource):
 
