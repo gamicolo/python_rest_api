@@ -35,40 +35,78 @@ def get_transactions(transactions):
     #make a local copy of the transactions dict to iterate over and not be affected when remove values older than 60 secs
     local_transactions = dict(transactions)
     result = []
-    current_timestamp = get_current_timestamp_utc()
-    logger.debug('The current timestamp is: %s' % current_timestamp)
-    for timestamp in local_transactions.keys():
-        logger.debug('The timestamp key in transactions dict is: %s' % timestamp)
-        if (current_timestamp - timestamp) < 60:
-            result.append(local_transactions[timestamp])
+    current_utimestamp = get_current_timestamp_utc()
+    logger.debug('The current utc unix timestamp is: %s' % current_utimestamp)
+    for k in local_transactions.keys():
+        utimestamp = local_transactions[k]['utimestamp']
+        logger.debug('The unix timestamp in transactions dict is: %s' % utimestamp)
+        if (current_utimestamp - utimestamp) < 60:
+            result.append({'amount':local_transactions[k]['amount'],'timestamp': local_transactions[k]['timestamp']})
         else:
             #remove old values from the original and not the copy
-            logger.debug('Removing timestamp key %s from transactions dict (older than 60 sec)' % timestamp)
-            transactions.pop(timestamp)
+            logger.info('Removing iso timestamp key %s from transactions dict (older than 60 sec)' % k)
+            transactions.pop(k)
     return result
+
+def post_transaction(transactions):
+
+    args = transactions_post_args.parse_args()
+    
+    timestamp = args['timestamp']
+    amount = args['amount']
+
+    #422 body fields cannot be parsed (non exists or invalid type)
+    if not(args['amount']) or not(type(args['amount']) == str):
+        logger.error('amount is None or not type str')
+        return 422
+    if not(args['timestamp']) or not(type(args['amount']) == str):
+        logger.error('timestamp is None or not type str')
+        return 422
+
+    unix = iso2unix(timestamp)
+
+    delta = get_current_timestamp_utc() - unix
+
+    #422 transaccion con TS mayor al UTC actual
+    if (delta < 0):
+        return 422
+
+    #400 json invalido
+    #TODO: implement 
+
+    #204 transactions older than 60 secs
+    if (delta > 60):
+        return 204
+
+    #201 exito
+    transactions.update({timestamp:{'amount':amount,'timestamp':timestamp,'utimestamp':unix}})
+    logger.debug('Adding iso timestamp key %s to transactions dict' % timestamp)
+    return 201
 
 def get_statistics(transactions):
     local_transactions = dict(transactions)
     statistics = {'sum': 0, 'avg': 0, 'max': 0, 'min': 0, 'p90': 0, 'count': 0}
-    current_timestamp = get_current_timestamp_utc()
-    logger.debug('The current timestamp is: %s' % current_timestamp)
+    current_utimestamp = get_current_timestamp_utc()
+    logger.debug('The current utc unix timestamp is: %s' % current_utimestamp)
     amount_list=[]
-    for timestamp in local_transactions.keys():
-        logger.debug('The timestamp key in transactions dict is: %s' % timestamp)
-        if (current_timestamp - timestamp) < 60:
-            statistics['sum'] += int(local_transactions[timestamp]['amount'])
-            if (int(local_transactions[timestamp]['amount']) > statistics['max']):
-                statistics['max']=int(local_transactions[timestamp]['amount'])
+    for k in local_transactions.keys():
+        utimestamp = local_transactions[k]['utimestamp']
+        logger.debug('The unix timestamp in transactions dict is: %s' % utimestamp)
+
+        if (current_utimestamp - utimestamp) < 60:
+            statistics['sum'] += int(local_transactions[k]['amount'])
+            if (int(local_transactions[k]['amount']) > statistics['max']):
+                statistics['max']=int(local_transactions[k]['amount'])
             if (statistics['min'] == 0):
-                statistics['min']=int(local_transactions[timestamp]['amount'])
-            if (int(local_transactions[timestamp]['amount']) < statistics['min']):
-                statistics['min']=int(local_transactions[timestamp]['amount'])
+                statistics['min']=int(local_transactions[k]['amount'])
+            if (int(local_transactions[k]['amount']) < statistics['min']):
+                statistics['min']=int(local_transactions[k]['amount'])
             statistics['count'] += 1
-            amount_list.append(int(local_transactions[timestamp]['amount']))
+            amount_list.append(int(local_transactions[k]['amount']))
         else:
             #remove old values from the original and not the copy
-            logger.debug('Removing timestamp key %s from transactions dict (older than 60 sec)' % timestamp)
-            transactions.pop(timestamp)
+            logger.info('Removing iso timestamp key %s from transactions dict (older than 60 sec)' % k)
+            transactions.pop(k)
     if (statistics['count'] > 0):
         statistics['avg'] = statistics['sum']/statistics['count']
     if amount_list:
@@ -78,7 +116,7 @@ def get_statistics(transactions):
 def get_percentile(percentile, samples = []):
 
     if not(len(samples) > 0):
-        return samples
+        return 0
     samples.sort()
     p_index = math.ceil((len(samples)-1)*(percentile/100))
     return samples[p_index]
@@ -86,53 +124,27 @@ def get_percentile(percentile, samples = []):
 class Transactions(Resource):
 
     def get(self):
+
         global transactions
         result = get_transactions(transactions)
         return result,200
 
     def post(self):
+
         global transactions
-
-        args = transactions_post_args.parse_args()
-        
-        #422 body fields cannot be parsed (non exists or invalid type)
-        if not(args['amount']) or not(type(args['amount']) == str):
-            logger.error('amount is None or not type str')
-            return {},422
-        if not(args['timestamp']) or not(type(args['amount']) == str):
-            logger.error('timestamp is None or not type str')
-            return {},422
-
-        tx_ts = iso2unix(args['timestamp'])
-
-        delta = get_current_timestamp_utc() - tx_ts
-
-        #422 transaccion con TS mayor al UTC actual
-        if (delta < 0):
-            return {},422
-
-        #400 json invalido
-        #TODO: implement 
-
-        #204 transactions older than 60 secs
-        if (delta > 60):
-            return {},204
-
-        #201 exito
-        transactions.update({tx_ts:{'amount':args['amount'],'timestamp':args['timestamp']}})
-        print(transactions)
-        return {},201
+        r_code = post_transaction(transactions)
+        return {},r_code
 
     def delete(self):
+
         global transactions
-        global transactions_amount
-        transactions = {}
-        transactions_amount = 0
+        transactions.clear()
         return 204
 
 class Statistics(Resource):
 
     def get(self):
+
         global transactions
         result = get_statistics(transactions)
         return result,200
@@ -141,5 +153,4 @@ api.add_resource(Transactions, "/transactions")
 api.add_resource(Statistics, "/statistics")
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=80, debug=True)
-    #app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)
