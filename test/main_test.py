@@ -2,7 +2,7 @@
 
 import unittest
 import sys
-sys.path.append('../src/app')
+sys.path.append('../src')
 from main import iso2unix,get_current_timestamp_utc,get_transactions,get_statistics
 
 class TestGetTransactions(unittest.TestCase):
@@ -17,8 +17,9 @@ class TestGetTransactions(unittest.TestCase):
 
     def test_transactions_not_empty(self):
 
-        k = get_current_timestamp_utc()
-        transactions = {k:{'amount': '1', 'timestamp': '2018-07-17T09:59:51.312Z'}}
+        u = get_current_timestamp_utc()
+        #transactions = {k:{'amount': '1', 'timestamp': '2018-07-17T09:59:51.312Z'}}
+        transactions = {'2018-07-17T09:59:51.312Z':{'amount': '1', 'timestamp': '2018-07-17T09:59:51.312Z','utimestamp':u}}
 
         result = get_transactions(transactions)
 
@@ -26,18 +27,21 @@ class TestGetTransactions(unittest.TestCase):
 
     def test_transactions_one_tx_one_result(self):
 
-        k = get_current_timestamp_utc()
-        tx = {'amount': '1', 'timestamp': '2018-07-17T09:59:51.312Z'}
+        u = get_current_timestamp_utc()
+        k = '2018-07-17T09:59:51.312Z'
+        tx = {'amount': '1', 'timestamp': u, 'utimestamp': u}
+        t_result = {'amount': '1', 'timestamp': u}
         transactions = {k: tx}
 
         result = get_transactions(transactions)
 
-        self.assertEqual(result,[tx])
+        self.assertEqual(result,[t_result])
 
     def test_transactions_one_tx_none_result(self):
 
-        k = get_current_timestamp_utc() - 60
-        tx = {'amount': '1', 'timestamp': '2018-07-17T09:59:51.312Z'}
+        u = get_current_timestamp_utc() - 60
+        k = '2018-07-17T09:59:51.312Z'
+        tx = {'amount': '1', 'timestamp': u, 'utimestamp': u}
         transactions = {k: tx}
 
         result = get_transactions(transactions)
@@ -46,31 +50,52 @@ class TestGetTransactions(unittest.TestCase):
 
     def test_transactions_several_tx_one_result(self):
 
-        k1 = get_current_timestamp_utc() - 10
-        tx1 = {'amount': '1', 'timestamp': '2021-06-01T10:00:00.000Z'}
-        k2 = get_current_timestamp_utc() - 70
-        tx2 = {'amount': '2', 'timestamp': '2021-06-01T11:00:00.000Z'}
-        k3 = get_current_timestamp_utc() - 65
-        tx3 = {'amount': '3', 'timestamp': '2021-06-01T12:00:00.000Z'}
+        u1 = get_current_timestamp_utc() - 10
+        k1 = '2021-06-01T10:00:00.000Z'
+        t1 = {'amount': '1', 'timestamp': k1, 'utimestamp': u1}
+        r1 = {'amount': '1', 'timestamp': k1}
+        u2 = get_current_timestamp_utc() - 70
+        k2 = '2021-06-01T11:00:00.000Z'
+        t2 = {'amount': '2', 'timestamp': k2, 'utimestamp': u2}
+        r2 = {'amount': '2', 'timestamp': k2}
+        u3 = get_current_timestamp_utc() - 65
+        k3 = '2021-06-01T12:00:00.000Z'
+        r3 = {'amount': '3', 'timestamp': k3}
+        t3 = {'amount': '3', 'timestamp': k3, 'utimestamp': u3}
 
-        transactions = {k1: tx1, k2: tx2, k3: tx3}
+        transactions = {k1: t1, k2: t2, k3: t3}
 
         result = get_transactions(transactions)
 
-        self.assertEqual(result,[tx1])
+        self.assertEqual(result,[r1])
 
 class TestGetStatistics(unittest.TestCase):
 
     def test_statistics_empty(self):
 
-        k1 = get_current_timestamp_utc() - 80
-        tx1 = {'amount': '10', 'timestamp': '2021-06-01T10:00:00.000Z'}
-        k2 = get_current_timestamp_utc() - 70
-        tx2 = {'amount': '10', 'timestamp': '2021-06-01T11:00:00.000Z'}
-        k3 = get_current_timestamp_utc() - 65
-        tx3 = {'amount': '10', 'timestamp': '2021-06-01T12:00:00.000Z'}
+        u1 = get_current_timestamp_utc() - 80
+        k1 = '2021-06-01T10:00:00.000Z'
+        t1 = {'amount': '10', 'timestamp': k1, 'utimestamp': u1}
+        r1 = {'amount': '10', 'timestamp': k1}
+        u2 = get_current_timestamp_utc() - 70
+        k2 = '2021-06-01T11:00:00.000Z'
+        t2 = {'amount': '10', 'timestamp': k2, 'utimestamp': u2}
+        r2 = {'amount': '10', 'timestamp': k2}
+        u3 = get_current_timestamp_utc() - 65
+        k3 = '2021-06-01T12:00:00.000Z'
+        r3 = {'amount': '10', 'timestamp': k3}
+        t3 = {'amount': '10', 'timestamp': k3, 'utimestamp': u3}
 
-        transactions = {k1: tx1, k2: tx2, k3: tx3}
+        transactions = {k1: t1, k2: t2, k3: t3}
+
+        #k1 = get_current_timestamp_utc() - 80
+        #tx1 = {'amount': '10', 'timestamp': '2021-06-01T10:00:00.000Z'}
+        #k2 = get_current_timestamp_utc() - 70
+        #tx2 = {'amount': '10', 'timestamp': '2021-06-01T11:00:00.000Z'}
+        #k3 = get_current_timestamp_utc() - 65
+        #tx3 = {'amount': '10', 'timestamp': '2021-06-01T12:00:00.000Z'}
+
+        #transactions = {k1: tx1, k2: tx2, k3: tx3}
         
         result = get_statistics(transactions)
 
@@ -78,14 +103,29 @@ class TestGetStatistics(unittest.TestCase):
 
     def test_statistics_not_empty(self):
 
-        k1 = get_current_timestamp_utc() - 10
-        tx1 = {'amount': '5', 'timestamp': '2021-06-01T10:00:00.000Z'}
-        k2 = get_current_timestamp_utc() - 15
-        tx2 = {'amount': '30', 'timestamp': '2021-06-01T11:00:00.000Z'}
-        k3 = get_current_timestamp_utc() - 20
-        tx3 = {'amount': '25', 'timestamp': '2021-06-01T12:00:00.000Z'}
+        u1 = get_current_timestamp_utc() - 10
+        k1 = '2021-06-01T10:00:00.000Z'
+        t1 = {'amount': '5', 'timestamp': k1, 'utimestamp': u1}
+        r1 = {'amount': '5', 'timestamp': k1}
+        u2 = get_current_timestamp_utc() - 15
+        k2 = '2021-06-01T11:00:00.000Z'
+        t2 = {'amount': '30', 'timestamp': k2, 'utimestamp': u2}
+        r2 = {'amount': '30', 'timestamp': k2}
+        u3 = get_current_timestamp_utc() - 20
+        k3 = '2021-06-01T12:00:00.000Z'
+        r3 = {'amount': '25', 'timestamp': k3}
+        t3 = {'amount': '25', 'timestamp': k3, 'utimestamp': u3}
 
-        transactions = {k1: tx1, k2: tx2, k3: tx3}
+        transactions = {k1: t1, k2: t2, k3: t3}
+
+        #k1 = get_current_timestamp_utc() - 10
+        #tx1 = {'amount': '5', 'timestamp': '2021-06-01T10:00:00.000Z'}
+        #k2 = get_current_timestamp_utc() - 15
+        #tx2 = {'amount': '30', 'timestamp': '2021-06-01T11:00:00.000Z'}
+        #k3 = get_current_timestamp_utc() - 20
+        #tx3 = {'amount': '25', 'timestamp': '2021-06-01T12:00:00.000Z'}
+
+        #transactions = {k1: tx1, k2: tx2, k3: tx3}
         
         result = get_statistics(transactions)
 
@@ -93,14 +133,29 @@ class TestGetStatistics(unittest.TestCase):
         
     def test_statistics_only_two_valid_transactions(self):
 
-        k1 = get_current_timestamp_utc() - 10
-        tx1 = {'amount': '10', 'timestamp': '2021-06-01T10:00:00.000Z'}
-        k2 = get_current_timestamp_utc() - 15
-        tx2 = {'amount': '30', 'timestamp': '2021-06-01T11:00:00.000Z'}
-        k3 = get_current_timestamp_utc() - 70
-        tx3 = {'amount': '10', 'timestamp': '2021-06-01T12:00:00.000Z'}
+        u1 = get_current_timestamp_utc() - 10
+        k1 = '2021-06-01T10:00:00.000Z'
+        t1 = {'amount': '10', 'timestamp': k1, 'utimestamp': u1}
+        r1 = {'amount': '10', 'timestamp': k1}
+        u2 = get_current_timestamp_utc() - 15
+        k2 = '2021-06-01T11:00:00.000Z'
+        t2 = {'amount': '30', 'timestamp': k2, 'utimestamp': u2}
+        r2 = {'amount': '30', 'timestamp': k2}
+        u3 = get_current_timestamp_utc() - 70
+        k3 = '2021-06-01T12:00:00.000Z'
+        r3 = {'amount': '10', 'timestamp': k3}
+        t3 = {'amount': '10', 'timestamp': k3, 'utimestamp': u3}
 
-        transactions = {k1: tx1, k2: tx2, k3: tx3}
+        transactions = {k1: t1, k2: t2, k3: t3}
+
+        #k1 = get_current_timestamp_utc() - 10
+        #tx1 = {'amount': '10', 'timestamp': '2021-06-01T10:00:00.000Z'}
+        #k2 = get_current_timestamp_utc() - 15
+        #tx2 = {'amount': '30', 'timestamp': '2021-06-01T11:00:00.000Z'}
+        #k3 = get_current_timestamp_utc() - 70
+        #tx3 = {'amount': '10', 'timestamp': '2021-06-01T12:00:00.000Z'}
+
+        #transactions = {k1: tx1, k2: tx2, k3: tx3}
         
         result = get_statistics(transactions)
 
@@ -108,20 +163,35 @@ class TestGetStatistics(unittest.TestCase):
 
     def test_statistics_check_transaction_stored_data(self):
 
-        k1 = get_current_timestamp_utc() - 10
-        tx1 = {'amount': '10', 'timestamp': '2021-06-01T10:00:00.000Z'}
-        k2 = get_current_timestamp_utc() - 15
-        tx2 = {'amount': '30', 'timestamp': '2021-06-01T11:00:00.000Z'}
-        k3 = get_current_timestamp_utc() - 70
-        tx3 = {'amount': '10', 'timestamp': '2021-06-01T12:00:00.000Z'}
+        u1 = get_current_timestamp_utc() - 10
+        k1 = '2021-06-01T10:00:00.000Z'
+        t1 = {'amount': '10', 'timestamp': k1, 'utimestamp': u1}
+        r1 = {'amount': '10', 'timestamp': k1}
+        u2 = get_current_timestamp_utc() - 15
+        k2 = '2021-06-01T11:00:00.000Z'
+        t2 = {'amount': '30', 'timestamp': k2, 'utimestamp': u2}
+        r2 = {'amount': '30', 'timestamp': k2}
+        u3 = get_current_timestamp_utc() - 70
+        k3 = '2021-06-01T12:00:00.000Z'
+        r3 = {'amount': '10', 'timestamp': k3}
+        t3 = {'amount': '10', 'timestamp': k3, 'utimestamp': u3}
 
-        transactions = {k1: tx1, k2: tx2, k3: tx3}
+        transactions = {k1: t1, k2: t2, k3: t3}
+
+        #k1 = get_current_timestamp_utc() - 10
+        #tx1 = {'amount': '10', 'timestamp': '2021-06-01T10:00:00.000Z'}
+        #k2 = get_current_timestamp_utc() - 15
+        #tx2 = {'amount': '30', 'timestamp': '2021-06-01T11:00:00.000Z'}
+        #k3 = get_current_timestamp_utc() - 70
+        #tx3 = {'amount': '10', 'timestamp': '2021-06-01T12:00:00.000Z'}
+
+        #transactions = {k1: tx1, k2: tx2, k3: tx3}
         print(transactions)
         
         result = get_statistics(transactions)
 
         print(transactions)
-        self.assertEqual(transactions,{k1: tx1, k2: tx2})
+        self.assertEqual(transactions,{k1: t1, k2: t2})
 
 if __name__ == "__main__":
 
