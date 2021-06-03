@@ -1,7 +1,10 @@
 # python_rest_api
+prerequisite
+
+- docker and docker-compose installed
+
 to run the container
 
-0. must have installed docker and docker-compose
 1. docker-compose build
 2. docker-compose run --service-ports real-time-statistics
 
@@ -12,4 +15,4 @@ to load testing
 1. docker-compose run --service-ports real-time-statistics
 2. locust -f post_load_client.py --host=http://0.0.0.0:5000
 3. on a web browser go to the URL http://localhost:8089/
-4. set up the numbre of clients and requets
+4. set up the number of total users and spawn rate (users spawned/second)
