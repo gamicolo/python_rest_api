@@ -9,7 +9,7 @@ import math
 import logging
 
 #logging.basicConfig(level=logging.DEBUG, filename='real_time_stats.log', filemode='w', format='%(asctime)s %(name)s %(levelname)s %(message)s')
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(name)s %(levelname)s %(message)s')
+logging.basicConfig(level=logging.ERROR, format='%(asctime)s %(name)s %(levelname)s %(message)s')
 
 logger = logging.getLogger('real_time_stats')
 
@@ -111,7 +111,8 @@ def get_statistics(transactions):
         statistics['avg'] = statistics['sum']/statistics['count']
     if amount_list:
         statistics['p90']=get_percentile(90, amount_list)
-    return statistics
+    #return statistics
+    return { key:str(value) for key,value in statistics.items()}
 
 def get_percentile(percentile, samples = []):
 
@@ -153,4 +154,5 @@ api.add_resource(Transactions, "/transactions")
 api.add_resource(Statistics, "/statistics")
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    #app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000)
