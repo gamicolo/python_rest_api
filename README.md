@@ -11,6 +11,14 @@ to run the container
 
 the container is listening in all IP's in the port 5000
 
+to testing
+
+unittest
+- run the main_test.py
+
+e2e test
+- use the [post|get|delete|stats]_client.py scripts
+
 to load testing
 
 1. docker-compose run --service-ports real-time-statistics
