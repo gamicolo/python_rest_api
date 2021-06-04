@@ -1,17 +1,135 @@
 #!/usr/bin/python3
 
 import unittest
+from unittest import mock
 import sys
 sys.path.append('../src')
-from main import iso2unix,get_current_timestamp_utc,get_transactions,get_statistics
+from main import iso2unix,get_current_timestamp_utc,get_transactions,get_statistics,post_transaction
+from datetime import datetime, timedelta
+import pytz
+
+class TestPostTransaction(unittest.TestCase):
+
+    def setUp(self):
+
+        self.now = datetime.utcnow().replace(tzinfo=pytz.timezone('UTC'))
+        self.lock = mock.MagicMock()
+
+    def test_post_success(self):
+
+        u = get_current_timestamp_utc()
+        k = self.now.isoformat('T')
+        a = '1'
+        t = {'amount': a, 'timestamp': k, 'utimestamp': u}
+        r = {'amount': a, 'timestamp': k}
+        transactions = {k: t}
+
+        code = post_transaction(transactions,a,k,self.lock)
+
+        self.assertEqual(code,201)
+
+    def test_post_amount_empty(self):
+
+        u = get_current_timestamp_utc()
+        k = self.now.isoformat('T')
+        a = None
+        t = {'amount': a, 'timestamp': k, 'utimestamp': u}
+        r = {'amount': a, 'timestamp': k}
+        transactions = {k: t}
+
+        code = post_transaction(transactions,a,k,self.lock)
+
+        self.assertEqual(code,422)
+
+    def test_post_timestamp_empty(self):
+
+        u = get_current_timestamp_utc()
+        k = None
+        a = '1'
+        t = {'amount': a, 'timestamp': k, 'utimestamp': u}
+        r = {'amount': a, 'timestamp': k}
+        transactions = {k: t}
+
+        code = post_transaction(transactions,a,k,self.lock)
+
+        self.assertEqual(code,422)
+
+    def test_post_amount_int_type(self):
+
+        u = get_current_timestamp_utc()
+        k = self.now.isoformat('T')
+        a = 1
+        t = {'amount': a, 'timestamp': k, 'utimestamp': u}
+        r = {'amount': a, 'timestamp': k}
+        transactions = {k: t}
+
+        code = post_transaction(transactions,a,k,self.lock)
+
+        self.assertEqual(code,422)
+
+    def test_post_timestamp_int_type(self):
+
+        u = get_current_timestamp_utc()
+        k = 0
+        a = '1'
+        t = {'amount': a, 'timestamp': k, 'utimestamp': u}
+        r = {'amount': a, 'timestamp': k}
+        transactions = {k: t}
+
+        code = post_transaction(transactions,a,k,self.lock)
+
+        self.assertEqual(code,422)
+
+    def test_post_timestamp_greather_than_utc(self):
+
+        u = get_current_timestamp_utc()
+        k = (self.now + timedelta(hours = 1)).isoformat('T')
+        a = '1'
+        t = {'amount': a, 'timestamp': k, 'utimestamp': u}
+        r = {'amount': a, 'timestamp': k}
+        transactions = {k: t}
+
+        code = post_transaction(transactions,a,k,self.lock)
+
+        self.assertEqual(code,422)
+
+    def test_post_timestamp_less_than_sixty_secs(self):
+
+        u = get_current_timestamp_utc()
+        k = (self.now - timedelta(seconds = 61)).isoformat('T')
+        a = '1'
+        t = {'amount': a, 'timestamp': k, 'utimestamp': u}
+        r = {'amount': a, 'timestamp': k}
+        transactions = {k: t}
+
+        code = post_transaction(transactions,a,k,self.lock)
+
+        self.assertEqual(code,204)
+
+    def test_post_invalid_json(self):
+
+        u = get_current_timestamp_utc()
+        k = (self.now - timedelta(seconds = 61)).isoformat('T')
+        a = '1'
+        t = {'amount': a, 'timestamp': k, 'utimestamp': u}
+        r = {'amount': a, 'timestamp': k}
+        transactions = {k: t}
+
+        code = post_transaction({'amount'},a,k,self.lock)
+
+        self.assertEqual(code,204)
 
 class TestGetTransactions(unittest.TestCase):
+
+    def setUp(self):
+
+        self.lock = mock.MagicMock()
 
     def test_transactions_empty(self):
 
         transactions = {}
 
-        result = get_transactions(transactions)
+        result = get_transactions(transactions,self.lock)
 
         self.assertEqual(result,[])
 
@@ -20,7 +138,7 @@ class TestGetTransactions(unittest.TestCase):
         u = get_current_timestamp_utc()
         transactions = {'2018-07-17T09:59:51.312Z':{'amount': '1', 'timestamp': '2018-07-17T09:59:51.312Z','utimestamp':u}}
 
-        result = get_transactions(transactions)
+        result = get_transactions(transactions,self.lock)
 
         self.assertNotEqual(result,[])
 
@@ -28,11 +146,11 @@ class TestGetTransactions(unittest.TestCase):
 
         u = get_current_timestamp_utc()
         k = '2018-07-17T09:59:51.312Z'
-        tx = {'amount': '1', 'timestamp': u, 'utimestamp': u}
-        t_result = {'amount': '1', 'timestamp': u}
+        tx = {'amount': '1', 'timestamp': k, 'utimestamp': u}
+        t_result = {'amount': '1', 'timestamp': k}
         transactions = {k: tx}
 
-        result = get_transactions(transactions)
+        result = get_transactions(transactions,self.lock)
 
         self.assertEqual(result,[t_result])
 
@@ -43,7 +161,7 @@ class TestGetTransactions(unittest.TestCase):
         tx = {'amount': '1', 'timestamp': u, 'utimestamp': u}
         transactions = {k: tx}
 
-        result = get_transactions(transactions)
+        result = get_transactions(transactions,self.lock)
 
         self.assertEqual(result,[])
 
@@ -64,11 +182,15 @@ class TestGetTransactions(unittest.TestCase):
 
         transactions = {k1: t1, k2: t2, k3: t3}
 
-        result = get_transactions(transactions)
+        result = get_transactions(transactions,self.lock)
 
         self.assertEqual(result,[r1])
 
 class TestGetStatistics(unittest.TestCase):
+
+    def setUp(self):
+
+        self.lock = mock.MagicMock()
 
     def test_statistics_empty(self):
 
@@ -87,7 +209,7 @@ class TestGetStatistics(unittest.TestCase):
 
         transactions = {k1: t1, k2: t2, k3: t3}
 
-        result = get_statistics(transactions)
+        result = get_statistics(transactions,self.lock)
 
         self.assertEqual(result,{'sum': '0', 'avg': '0', 'max': '0', 'min': '0', 'p90': '0', 'count': '0'})
 
@@ -108,7 +230,7 @@ class TestGetStatistics(unittest.TestCase):
 
         transactions = {k1: t1, k2: t2, k3: t3}
         
-        result = get_statistics(transactions)
+        result = get_statistics(transactions,self.lock)
 
         self.assertEqual(result,{'sum': '60', 'avg': '20.0', 'max': '30', 'min': '5', 'p90': '30', 'count': '3'})
         
@@ -129,11 +251,15 @@ class TestGetStatistics(unittest.TestCase):
 
         transactions = {k1: t1, k2: t2, k3: t3}
         
-        result = get_statistics(transactions)
+        result = get_statistics(transactions,self.lock)
 
         self.assertEqual(result,{'sum': '40', 'avg': '20.0', 'max': '30', 'min': '10', 'p90': '30', 'count': '2'})
 
 class TestCheckStoredData(unittest.TestCase):
+
+    def setUp(self):
+
+        self.lock = mock.MagicMock()
 
     def test_statistics_check_transaction_stored_data(self):
 
@@ -152,7 +278,7 @@ class TestCheckStoredData(unittest.TestCase):
 
         transactions = {k1: t1, k2: t2, k3: t3}
 
-        result = get_statistics(transactions)
+        result = get_statistics(transactions,self.lock)
 
         self.assertEqual(transactions,{k1: t1, k2: t2})
 
