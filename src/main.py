@@ -8,9 +8,10 @@ import pytz
 import math
 import logging
 from multiprocessing import Manager, Lock
+import time
 
-#logging.basicConfig(level=logging.DEBUG, filename='real_time_stats.log', filemode='w', format='%(asctime)s %(name)s %(levelname)s %(message)s')
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(name)s %(levelname)s %(message)s')
+logging.basicConfig(level=logging.INFO, filename='real_time_stats.log', filemode='w', format='%(asctime)s %(name)s %(levelname)s %(message)s')
+#logging.basicConfig(level=logging.ERROR, format='%(asctime)s %(name)s %(levelname)s %(message)s')
 
 logger = logging.getLogger('real_time_stats')
 
@@ -61,7 +62,9 @@ def post_transaction(transactions,amount,timestamp,lock):
         return 204
 
     #201 success
+    #logger.info('The transactions is locked for post_transaction? <%s>' % lock.isLock())
     with lock:
+        logger.info('Inside a lock as context manager for the post_transaction function')
         transactions.update({timestamp:{'amount':amount,'timestamp':timestamp,'utimestamp':unix}})
         logger.debug('Adding iso timestamp key %s to transactions dict' % timestamp)
     return 201
@@ -70,7 +73,10 @@ def get_transactions(transactions,lock):
     result = []
     current_utimestamp = get_current_timestamp_utc()
     logger.debug('The current utc unix timestamp is: %s' % current_utimestamp)
+    #logger.info('The transactions is locked for get_transactions? <%s>' % lock.isLock())
+    start_time = time.time()
     with lock:
+        logger.info('Inside a lock as context manager for the get_transactions function')
         #make a local copy of the transactions dict to iterate over and not be affected when remove values older than 60 secs
         local_transactions = dict(transactions)
         for k in local_transactions.keys():
@@ -82,6 +88,7 @@ def get_transactions(transactions,lock):
                 #remove old values from the original and not the copy
                 logger.info('Removing iso timestamp key %s from transactions dict (older than 60 sec)' % k)
                 transactions.pop(k)
+    logger.info('The time to iterate over transaction for get_transactions function was <%s>' % (time.time() - start_time))
     return result
 
 def get_statistics(transactions,lock):
@@ -89,8 +96,11 @@ def get_statistics(transactions,lock):
     current_utimestamp = get_current_timestamp_utc()
     logger.debug('The current utc unix timestamp is: %s' % current_utimestamp)
     amount_list=[]
+    #logger.info('The transactions is locked for get_statistics? <%s>' % lock.isLock())
     with lock:
+        logger.info('Inside a lock as context manager for the get_statistics function')
         local_transactions = dict(transactions)
+        start_time = time.time()
         for k in local_transactions.keys():
             utimestamp = local_transactions[k]['utimestamp']
             logger.debug('The unix timestamp in transactions dict is: %s' % utimestamp)
@@ -109,6 +119,7 @@ def get_statistics(transactions,lock):
                 #remove old values from the original and not the copy
                 logger.info('Removing iso timestamp key %s from transactions dict (older than 60 sec)' % k)
                 transactions.pop(k)
+    logger.info('The time to iterate over transaction for get_statistics function was <%s>' % (time.time() - start_time))
     if (statistics['count'] > 0):
         statistics['avg'] = statistics['sum']/statistics['count']
     if amount_list:
@@ -129,12 +140,16 @@ class Transactions(Resource):
     def post(self):
 
         args = transactions_post_args.parse_args()
+        #logger.info('Incoming post request with iso timestamp %s' % args['timestamp'])
         r_code = post_transaction(shared_transactions,args['amount'],args['timestamp'],lock)
+        #logger.info('Processed post request with iso timestamp %s' % args['timestamp'])
         return {},r_code
 
     def get(self):
 
+        #logger.info('Incoming get request')
         result = get_transactions(shared_transactions,lock)
+        #logger.info('Processed get request')
         return result,200
 
     def delete(self):
