@@ -1,9 +1,17 @@
 version: '3.4'
 
 services:
+
+    redis:
+        image: redis
+        ports:
+          - 6379:6379
+        volumes:
+          - .:/usr/src/app
+
     real-time-statistics:
         build: .
         ports:
-          - "5000:5000"
+          - 5000:5000
         volumes:
           - .:/usr/src/app
